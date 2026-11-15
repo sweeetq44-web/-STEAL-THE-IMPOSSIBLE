@@ -28,13 +28,26 @@ jobs:
       - name: Compile All .luau Files & Run End-to-End Tests
         run: node tests/run_luau_tests.mjs
 
+      - name: Install Official Rojo CLI & Build Binary .rbxl
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/rojo-rbx/rojo/releases/download/v7.7.1/rojo-7.7.1-linux-x86_64.zip" -o /tmp/rojo.zip
+          unzip -o /tmp/rojo.zip -d /tmp/rojo-bin
+          ROJO_BIN="$(find /tmp/rojo-bin -name rojo -type f | head -n 1)"
+          chmod +x "$ROJO_BIN"
+          "$ROJO_BIN" --version
+          "$ROJO_BIN" build default.project.json -o StealTheImpossible.rbxl
+          ls -lh StealTheImpossible.rbxl
+
       - name: Build & Validate StealTheImpossible.rbxlx
         run: |
           python3 tools/build_rbxlx.py
           python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("StealTheImpossible.rbxlx").getroot(); print("Validated XML nodes:", len(list(root.iter("Item"))))'
 
-      - name: Upload StealTheImpossible.rbxlx Artifact
+      - name: Upload Place Artifacts (.rbxl & .rbxlx)
         uses: actions/upload-artifact@v4
         with:
           name: StealTheImpossible-Place
-          path: StealTheImpossible.rbxlx
+          path: |
+            StealTheImpossible.rbxl
+            StealTheImpossible.rbxlx

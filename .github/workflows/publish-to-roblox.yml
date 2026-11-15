@@ -35,18 +35,29 @@ jobs:
       - name: Verify All Luau Scripts & Run Tests
         run: node tests/run_luau_tests.mjs
 
-      - name: Build Fresh StealTheImpossible.rbxlx
+      - name: Install Official Rojo CLI & Build Binary .rbxl
         run: |
-          python3 tools/build_rbxlx.py
-          python3 -c 'import xml.etree.ElementTree as ET; ET.parse("StealTheImpossible.rbxlx")'
+          set -euo pipefail
+          curl -fsSL "https://github.com/rojo-rbx/rojo/releases/download/v7.7.1/rojo-7.7.1-linux-x86_64.zip" -o /tmp/rojo.zip
+          unzip -o /tmp/rojo.zip -d /tmp/rojo-bin
+          ROJO_BIN="$(find /tmp/rojo-bin -name rojo -type f | head -n 1)"
+          chmod +x "$ROJO_BIN"
+          "$ROJO_BIN" --version
+          "$ROJO_BIN" build default.project.json -o StealTheImpossible.rbxl
+          ls -lh StealTheImpossible.rbxl
 
-      - name: Upload .rbxlx Artifact Backup
+      - name: Build Backup StealTheImpossible.rbxlx
+        run: python3 tools/build_rbxlx.py
+
+      - name: Upload Place Artifacts (.rbxl & .rbxlx)
         uses: actions/upload-artifact@v4
         with:
           name: StealTheImpossible-Place
-          path: StealTheImpossible.rbxlx
+          path: |
+            StealTheImpossible.rbxl
+            StealTheImpossible.rbxlx
 
-      - name: Upload Place to Roblox via Open Cloud API
+      - name: Upload .rbxl Place to Roblox via Open Cloud API
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
@@ -59,31 +70,44 @@ jobs:
           PLACE_ID="$(printf '%s' "$ROBLOX_PLACE_ID" | tr -d '[:space:]')"
 
           if [ -z "$API_KEY" ] || [ -z "$UNIVERSE_ID" ] || [ -z "$PLACE_ID" ]; then
-            echo "::error::Missing GitHub Secrets! Add ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, and ROBLOX_PLACE_ID in Repo Settings -> Secrets and variables -> Actions."
+            echo "::error::Eksik GitHub Secret! Settings -> Secrets and variables -> Actions icinde ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID ve ROBLOX_PLACE_ID tanimli olmali."
             exit 1
           fi
 
           if ! [[ "$UNIVERSE_ID" =~ ^[0-9]+$ ]] || ! [[ "$PLACE_ID" =~ ^[0-9]+$ ]]; then
-            echo "::error::ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID must be numeric IDs (from create.roblox.com)."
+            echo "::error::ROBLOX_UNIVERSE_ID ve ROBLOX_PLACE_ID sadece rakamlardan olusmalidir (link yapistirmayin)."
             exit 1
           fi
 
           URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=${VERSION_TYPE}"
-          echo "Uploading StealTheImpossible.rbxlx to Universe=${UNIVERSE_ID}, Place=${PLACE_ID} (${VERSION_TYPE})..."
+          echo "Uploading Rojo binary StealTheImpossible.rbxl to Universe=${UNIVERSE_ID}, Place=${PLACE_ID} (${VERSION_TYPE})..."
 
           RESP_FILE="$(mktemp)"
           HTTP_CODE=$(curl -sS -o "$RESP_FILE" -w "%{http_code}" -X POST "$URL" \
             -H "x-api-key: ${API_KEY}" \
-            -H "Content-Type: application/xml" \
-            --data-binary "@StealTheImpossible.rbxlx")
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@StealTheImpossible.rbxl")
 
+          RESP_BODY="$(tr '\r\n' ' ' < "$RESP_FILE" | head -c 600)"
           echo "Roblox API HTTP Status: $HTTP_CODE"
-          cat "$RESP_FILE"
-          echo ""
+          echo "Roblox API Response: $RESP_BODY"
 
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "::error::Roblox Open Cloud upload failed with HTTP $HTTP_CODE. Check API key permissions (universe-places:write) and Universe/Place IDs."
+            {
+              echo "### ❌ Roblox Yükleme Hatası (HTTP ${HTTP_CODE})"
+              echo "- **Universe ID:** \`${UNIVERSE_ID}\`"
+              echo "- **Place ID:** \`${PLACE_ID}\`"
+              echo "- **Roblox Yanıtı:** \`${RESP_BODY}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Roblox HTTP ${HTTP_CODE} (Universe=${UNIVERSE_ID}, Place=${PLACE_ID}) -> Yanit: ${RESP_BODY}"
             exit 1
           fi
 
-          echo "✅ Successfully uploaded StealTheImpossible.rbxlx to Roblox!"
+          {
+            echo "### ✅ Oyun Başarıyla Roblox'a Yüklendi!"
+            echo "- **Universe ID:** \`${UNIVERSE_ID}\`"
+            echo "- **Place ID:** \`${PLACE_ID}\`"
+            echo "- **Mod:** \`${VERSION_TYPE}\`"
+            echo "- **Roblox Yanıtı:** \`${RESP_BODY}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Successfully uploaded StealTheImpossible.rbxl to Roblox! Response: $RESP_BODY"

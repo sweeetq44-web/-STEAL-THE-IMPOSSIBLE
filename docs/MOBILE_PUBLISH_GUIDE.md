@@ -38,7 +38,7 @@ Telefonunun tarayıcısından (Chrome/Safari) **Masaüstü Sitesi (Desktop Site)
    - **Use workflow from**: kodun bulunduğu güncel dalı (`main` veya `arena/2e8bd490-steal-the-impossible`) seç.
    - **version_type**: **`Published`** kalsın.
    - Yeşil **Run workflow** butonuna bas!
-4. ~30–45 saniye içinde GitHub önce **47 `.luau` dosyasını derleyip 131 testi geçirecek**, ardından `StealTheImpossible.rbxlx` dosyasını otomatik olarak **senin Roblox Place'ine yükleyecek**!
+4. ~30–45 saniye içinde GitHub önce **47 `.luau` dosyasını derleyip 131 testi geçirecek**, ardından resmi **Rojo** ile **`StealTheImpossible.rbxl`** ikili oyun dosyasını üretip **senin Roblox Place'ine yükleyecek**! *(Herhangi bir hata çıkarsa Roblox'un yanıtı artık doğrudan özet ekranında görünür.)*
 
 ---
 
