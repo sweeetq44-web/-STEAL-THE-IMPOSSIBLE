@@ -1,0 +1,64 @@
+{
+  "name": "StealTheImpossible",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "$path": "src/ReplicatedFirst"
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/ReplicatedStorage/Shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/ServerScriptService/Server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Client"
+        }
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {}
+    },
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": true
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Ambient": [0.18, 0.2, 0.28],
+        "Brightness": 2.2,
+        "EnvironmentDiffuseScale": 0.65,
+        "EnvironmentSpecularScale": 0.85,
+        "FogColor": [0.06, 0.08, 0.14],
+        "FogEnd": 1400,
+        "FogStart": 350,
+        "GeographicLatitude": 38,
+        "GlobalShadows": true,
+        "OutdoorAmbient": [0.24, 0.27, 0.36],
+        "Technology": "Future",
+        "TimeOfDay": "19:12:00"
+      }
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

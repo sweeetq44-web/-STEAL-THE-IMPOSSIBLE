@@ -1,0 +1,40 @@
+name: Verify Luau & Build Place
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Luau VM Test Dependency
+        run: npm --prefix /tmp/rblx-test install --no-save luau-web
+
+      - name: Compile All .luau Files & Run End-to-End Tests
+        run: node tests/run_luau_tests.mjs
+
+      - name: Build & Validate StealTheImpossible.rbxlx
+        run: |
+          python3 tools/build_rbxlx.py
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("StealTheImpossible.rbxlx").getroot(); print("Validated XML nodes:", len(list(root.iter("Item"))))'
+
+      - name: Upload StealTheImpossible.rbxlx Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StealTheImpossible-Place
+          path: StealTheImpossible.rbxlx

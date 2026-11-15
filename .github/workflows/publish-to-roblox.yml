@@ -1,0 +1,89 @@
+name: Publish to Roblox (No PC Needed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Published = Live Game, Saved = Draft Only"
+        required: true
+        default: "Published"
+        type: choice
+        options:
+          - Published
+          - Saved
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Luau VM Test Dependency
+        run: npm --prefix /tmp/rblx-test install --no-save luau-web
+
+      - name: Verify All Luau Scripts & Run Tests
+        run: node tests/run_luau_tests.mjs
+
+      - name: Build Fresh StealTheImpossible.rbxlx
+        run: |
+          python3 tools/build_rbxlx.py
+          python3 -c 'import xml.etree.ElementTree as ET; ET.parse("StealTheImpossible.rbxlx")'
+
+      - name: Upload .rbxlx Artifact Backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: StealTheImpossible-Place
+          path: StealTheImpossible.rbxlx
+
+      - name: Upload Place to Roblox via Open Cloud API
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
+          VERSION_TYPE: ${{ github.event.inputs.version_type || 'Published' }}
+        run: |
+          set -euo pipefail
+          API_KEY="$(printf '%s' "$ROBLOX_API_KEY" | tr -d '[:space:]')"
+          UNIVERSE_ID="$(printf '%s' "$ROBLOX_UNIVERSE_ID" | tr -d '[:space:]')"
+          PLACE_ID="$(printf '%s' "$ROBLOX_PLACE_ID" | tr -d '[:space:]')"
+
+          if [ -z "$API_KEY" ] || [ -z "$UNIVERSE_ID" ] || [ -z "$PLACE_ID" ]; then
+            echo "::error::Missing GitHub Secrets! Add ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, and ROBLOX_PLACE_ID in Repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          if ! [[ "$UNIVERSE_ID" =~ ^[0-9]+$ ]] || ! [[ "$PLACE_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID must be numeric IDs (from create.roblox.com)."
+            exit 1
+          fi
+
+          URL="https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=${VERSION_TYPE}"
+          echo "Uploading StealTheImpossible.rbxlx to Universe=${UNIVERSE_ID}, Place=${PLACE_ID} (${VERSION_TYPE})..."
+
+          RESP_FILE="$(mktemp)"
+          HTTP_CODE=$(curl -sS -o "$RESP_FILE" -w "%{http_code}" -X POST "$URL" \
+            -H "x-api-key: ${API_KEY}" \
+            -H "Content-Type: application/xml" \
+            --data-binary "@StealTheImpossible.rbxlx")
+
+          echo "Roblox API HTTP Status: $HTTP_CODE"
+          cat "$RESP_FILE"
+          echo ""
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Roblox Open Cloud upload failed with HTTP $HTTP_CODE. Check API key permissions (universe-places:write) and Universe/Place IDs."
+            exit 1
+          fi
+
+          echo "✅ Successfully uploaded StealTheImpossible.rbxlx to Roblox!"
